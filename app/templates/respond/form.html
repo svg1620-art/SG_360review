@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Анкета 360°{% endblock %}
+{% set relation_labels = {"self": "самооценка", "manager": "оценка руководителя", "peer": "оценка коллеги", "subordinate": "оценка подчинённого"} %}
+{% block content %}
+<h1>{{ a.cycle_title }}</h1>
+<p class="muted">
+  Оцениваемый: <strong>{{ a.subject_name }}</strong> · {{ relation_labels[a.relation] }}
+</p>
+
+{% if locked %}
+  {% if a.status == 'submitted' %}
+    <div class="flash">Спасибо! Ваши ответы отправлены. Изменить их больше нельзя.</div>
+  {% else %}
+    <div class="flash">Цикл завершён — анкета больше не принимает ответы.</div>
+  {% endif %}
+{% else %}
+<p class="muted">Ответы сохраняются автоматически. Когда закончите — нажмите «Отправить».</p>
+
+{% for g in groups %}
+<div class="competency">
+  <div class="comp-head"><strong>{{ g.name }}</strong></div>
+  {% for q in g.questions %}
+    {% set ans = answers.get(q.id) %}
+    <div class="q-block">
+      <div class="q-text">{{ q.question_text }}</div>
+      {% if q.qtype == 'rating' %}
+      <form class="answer-form"
+            hx-post="{{ url_for('respond.answer', token=token) }}"
+            hx-trigger="change" hx-target="#status-{{ q.id }}" hx-swap="innerHTML">
+        <input type="hidden" name="cycle_question_id" value="{{ q.id }}">
+        <span class="rating">
+          {% for n in range(1, 6) %}
+          <label><input type="radio" name="rating" value="{{ n }}"
+                 {{ "checked" if ans and ans.rating == n }}> {{ n }}</label>
+          {% endfor %}
+        </span>
+        <span class="save-status" id="status-{{ q.id }}">{% if ans and ans.rating %}✓ сохранено{% endif %}</span>
+      </form>
+      {% else %}
+      <form class="answer-form"
+            hx-post="{{ url_for('respond.answer', token=token) }}"
+            hx-trigger="change, keyup changed delay:1s"
+            hx-target="#status-{{ q.id }}" hx-swap="innerHTML">
+        <input type="hidden" name="cycle_question_id" value="{{ q.id }}">
+        <textarea name="text_answer" rows="3" placeholder="Ваш ответ…">{{ ans.text_answer if ans and ans.text_answer }}</textarea>
+        <span class="save-status" id="status-{{ q.id }}">{% if ans and ans.text_answer %}✓ сохранено{% endif %}</span>
+      </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+<form method="post" action="{{ url_for('respond.submit', token=token) }}" style="margin-top:1.5rem"
+      onsubmit="return confirm('Отправить ответы? После отправки изменить их будет нельзя.');">
+  <button type="submit">Отправить</button>
+</form>
+{% endif %}
+{% endblock %}
