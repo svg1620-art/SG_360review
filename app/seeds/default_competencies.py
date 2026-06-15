@@ -83,7 +83,7 @@ def seed_default_competencies(conn, company_id):
                 """,
                 (company_id, comp["name"], comp["description"], comp_order),
             )
-            competency_id = cur.fetchone()[0]
+            competency_id = cur.fetchone()["id"]
             for q_order, (text, qtype) in enumerate(comp["questions"]):
                 cur.execute(
                     """

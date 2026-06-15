@@ -1,0 +1,13 @@
+<tr id="emp-{{ e.id }}">
+  <td><input name="full_name" value="{{ e.full_name }}" required></td>
+  <td><input name="email" type="email" value="{{ e.email or '' }}"></td>
+  <td><input name="position" value="{{ e.position or '' }}"></td>
+  <td><input name="department" value="{{ e.department or '' }}"></td>
+  <td><input type="checkbox" name="active" {{ "checked" if e.active }}></td>
+  <td class="actions">
+    <button hx-post="{{ url_for('employees.update', emp_id=e.id) }}"
+            hx-include="closest tr" hx-target="#emp-{{ e.id }}" hx-swap="outerHTML">Сохр.</button>
+    <button hx-get="{{ url_for('employees.row', emp_id=e.id) }}"
+            hx-target="#emp-{{ e.id }}" hx-swap="outerHTML">Отмена</button>
+  </td>
+</tr>

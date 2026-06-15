@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SG 360°{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; color: #1c1c1c; }
+    nav { display: flex; align-items: center; gap: 1rem; padding: .75rem 1.25rem;
+          background: #1f2937; color: #fff; }
+    nav a { color: #fff; text-decoration: none; }
+    nav a:hover { text-decoration: underline; }
+    nav .spacer { flex: 1; }
+    nav form { margin: 0; }
+    main { max-width: 960px; margin: 1.5rem auto; padding: 0 1.25rem; }
+    h1 { font-size: 1.4rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid #e5e7eb; }
+    input, select, button { font: inherit; padding: .35rem .5rem; }
+    .row-form, .q-form { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+    .actions { display: inline-flex; gap: .35rem; }
+    button { cursor: pointer; }
+    .flash { background: #fef3c7; border: 1px solid #f59e0b; padding: .5rem .75rem;
+             border-radius: 6px; margin-bottom: 1rem; }
+    .competency { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem;
+                  margin-bottom: 1rem; }
+    .comp-head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .competency .questions { list-style: none; padding: 0; margin: .75rem 0; }
+    .competency .questions li { display: flex; align-items: center; gap: .5rem;
+                                padding: .3rem 0; border-bottom: 1px dashed #eee; }
+    .qtype { color: #6b7280; font-size: .85rem; }
+    .muted { color: #6b7280; }
+    .badge { background: #e5e7eb; border-radius: 4px; padding: 0 .4rem; font-size: .8rem; }
+    .auth-card { max-width: 380px; margin: 3rem auto; }
+    .auth-card label { display: block; margin: .6rem 0 .2rem; }
+    .auth-card input { width: 100%; }
+    .auth-card button { width: 100%; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  {% if g.admin %}
+  <nav>
+    <a href="{{ url_for('employees.index') }}">Сотрудники</a>
+    <a href="{{ url_for('competencies.index') }}">Компетенции</a>
+    <span class="spacer"></span>
+    <span class="muted-light">{{ g.admin.email }}</span>
+    <form method="post" action="{{ url_for('auth.logout') }}"><button>Выйти</button></form>
+  </nav>
+  {% endif %}
+  <main>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash">{% for m in messages %}<div>{{ m }}</div>{% endfor %}</div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,12 +1,15 @@
 """Подключение к PostgreSQL через psycopg 3. Соединение живёт в рамках запроса."""
 import psycopg
+from psycopg.rows import dict_row
 from flask import current_app, g
 
 
 def get_db():
     """Возвращает psycopg-подключение, привязанное к текущему запросу."""
     if "db" not in g:
-        g.db = psycopg.connect(current_app.config["DATABASE_URL"])
+        g.db = psycopg.connect(
+            current_app.config["DATABASE_URL"], row_factory=dict_row
+        )
     return g.db
 
 

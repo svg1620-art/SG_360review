@@ -17,7 +17,7 @@ def seed_demo_company(name):
             "INSERT INTO companies (name) VALUES (%s) RETURNING id",
             (name,),
         )
-        company_id = cur.fetchone()[0]
+        company_id = cur.fetchone()["id"]
     db.commit()
 
     seed_default_competencies(db, company_id)

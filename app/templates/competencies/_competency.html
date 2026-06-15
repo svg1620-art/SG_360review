@@ -1,0 +1,31 @@
+<div class="competency" id="comp-{{ c.id }}">
+  <div class="comp-head">
+    <strong>{{ c.name }}</strong>
+    {% if c.description %}<span class="muted">— {{ c.description }}</span>{% endif %}
+    {% if not c.active %}<span class="badge">скрыта</span>{% endif %}
+    <span class="spacer" style="flex:1"></span>
+    <span class="actions">
+      <button hx-get="{{ url_for('competencies.edit', comp_id=c.id) }}"
+              hx-target="#comp-{{ c.id }}" hx-swap="outerHTML">Изм.</button>
+      <button hx-delete="{{ url_for('competencies.delete', comp_id=c.id) }}"
+              hx-target="#comp-{{ c.id }}" hx-swap="outerHTML"
+              hx-confirm="Удалить компетенцию со всеми вопросами?">Удал.</button>
+    </span>
+  </div>
+
+  <ul class="questions" id="q-list-{{ c.id }}">
+    {% for q in questions %}{% include "competencies/_question.html" %}{% endfor %}
+  </ul>
+
+  <form class="q-form"
+        hx-post="{{ url_for('competencies.create_question', comp_id=c.id) }}"
+        hx-target="#q-list-{{ c.id }}" hx-swap="beforeend"
+        hx-on::after-request="if(event.detail.successful) this.reset()">
+    <input name="text" placeholder="Текст вопроса" required>
+    <select name="qtype">
+      <option value="rating">оценка 1–5</option>
+      <option value="open">открытый</option>
+    </select>
+    <button type="submit">+ вопрос</button>
+  </form>
+</div>

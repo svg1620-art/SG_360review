@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Компетенции{% endblock %}
+{% block content %}
+<h1>Компетенции</h1>
+
+<form class="row-form"
+      hx-post="{{ url_for('competencies.create') }}"
+      hx-target="#comp-list" hx-swap="beforeend"
+      hx-on::after-request="if(event.detail.successful) this.reset()">
+  <input name="name" placeholder="Название компетенции" required>
+  <input name="description" placeholder="описание">
+  <button type="submit">Добавить компетенцию</button>
+</form>
+
+<div id="comp-list">
+  {% for c in comps %}
+    {% with questions = questions_by_comp.get(c.id, []) %}
+      {% include "competencies/_competency.html" %}
+    {% endwith %}
+  {% endfor %}
+</div>
+{% endblock %}

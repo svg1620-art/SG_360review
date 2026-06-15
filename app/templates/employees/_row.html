@@ -1,0 +1,14 @@
+<tr id="emp-{{ e.id }}">
+  <td>{{ e.full_name }}</td>
+  <td>{{ e.email or "—" }}</td>
+  <td>{{ e.position or "—" }}</td>
+  <td>{{ e.department or "—" }}</td>
+  <td>{{ "да" if e.active else "нет" }}</td>
+  <td class="actions">
+    <button hx-get="{{ url_for('employees.edit', emp_id=e.id) }}"
+            hx-target="#emp-{{ e.id }}" hx-swap="outerHTML">Изм.</button>
+    <button hx-delete="{{ url_for('employees.delete', emp_id=e.id) }}"
+            hx-target="#emp-{{ e.id }}" hx-swap="outerHTML"
+            hx-confirm="Удалить сотрудника?">Удал.</button>
+  </td>
+</tr>

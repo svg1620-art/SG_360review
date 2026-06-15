@@ -13,3 +13,7 @@ class Config:
     # Порог анонимности по умолчанию для новых компаний (companies.anon_threshold).
     ANON_THRESHOLD = int(os.environ.get("ANON_THRESHOLD", "3"))
     DEBUG = os.environ.get("FLASK_ENV", "production") == "development"
+
+    # Куки сессии: защита от XSS и базовая защита от CSRF для форм.
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
