@@ -1,0 +1,13 @@
+<li id="q-{{ q.id }}">
+  <input name="text" value="{{ q.text }}" required style="flex:1">
+  <select name="qtype">
+    <option value="rating" {{ "selected" if q.qtype == "rating" }}>оценка 1–5</option>
+    <option value="open" {{ "selected" if q.qtype == "open" }}>открытый</option>
+  </select>
+  <span class="actions">
+    <button hx-post="{{ url_for('competencies.update_question', q_id=q.id) }}"
+            hx-include="closest li" hx-target="#q-{{ q.id }}" hx-swap="outerHTML">сохр.</button>
+    <button hx-get="{{ url_for('competencies.show_question', q_id=q.id) }}"
+            hx-target="#q-{{ q.id }}" hx-swap="outerHTML">отмена</button>
+  </span>
+</li>

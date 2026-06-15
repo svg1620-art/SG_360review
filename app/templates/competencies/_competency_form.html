@@ -1,0 +1,15 @@
+<div class="competency" id="comp-{{ c.id }}">
+  <div class="comp-head">
+    <input name="name" value="{{ c.name }}" required>
+    <input name="description" value="{{ c.description or '' }}" placeholder="описание">
+    <label><input type="checkbox" name="active" {{ "checked" if c.active }}> активна</label>
+    <span class="spacer" style="flex:1"></span>
+    <span class="actions">
+      <button hx-post="{{ url_for('competencies.update', comp_id=c.id) }}"
+              hx-include="closest .competency"
+              hx-target="#comp-{{ c.id }}" hx-swap="outerHTML">Сохр.</button>
+      <button hx-get="{{ url_for('competencies.show', comp_id=c.id) }}"
+              hx-target="#comp-{{ c.id }}" hx-swap="outerHTML">Отмена</button>
+    </span>
+  </div>
+</div>

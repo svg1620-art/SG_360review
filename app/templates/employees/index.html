@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Сотрудники{% endblock %}
+{% block content %}
+<h1>Сотрудники</h1>
+
+{% if can_add %}
+<form class="row-form"
+      hx-post="{{ url_for('employees.create') }}"
+      hx-target="#emp-rows" hx-swap="beforeend"
+      hx-on::after-request="if(event.detail.successful) this.reset()">
+  <input name="full_name" placeholder="ФИО" required>
+  <input name="email" type="email" placeholder="email">
+  <input name="position" placeholder="должность">
+  <input name="department" placeholder="отдел">
+  <button type="submit">Добавить</button>
+</form>
+{% else %}
+<p class="flash">Достигнут лимит Free ({{ free_limit }} сотрудников).
+  <a href="{{ url_for('billing.index') }}">Перейти на Pro</a> для снятия ограничений.</p>
+{% endif %}
+
+<table>
+  <thead>
+    <tr><th>ФИО</th><th>Email</th><th>Должность</th><th>Отдел</th><th>Активен</th><th></th></tr>
+  </thead>
+  <tbody id="emp-rows">
+    {% for e in employees %}{% include "employees/_row.html" %}{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

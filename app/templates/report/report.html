@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Отчёт · {{ subject_name }}{% endblock %}
+{% macro num(x) %}{% if x is none %}—{% else %}{{ "%.2f"|format(x) }}{% endif %}{% endmacro %}
+{% block content %}
+<p><a href="{{ url_for('cycles.detail', cycle_id=cycle.id) }}">← к циклу</a></p>
+<h1>Отчёт 360°: {{ subject_name }}</h1>
+{% if g.plan == 'pro' %}
+<p><a href="{{ url_for('report.export', cycle_id=cycle.id, subject_id=subject_id) }}">⤓ Скачать XLSX</a></p>
+{% else %}
+<p class="muted">Экспорт XLSX доступен на тарифе Pro.</p>
+{% endif %}
+<p class="muted">
+  Цикл: {{ cycle.title }}{% if cycle.period_label %} · {{ cycle.period_label }}{% endif %}
+  · Ответивших: самооценка {{ counts.get('self', 0) }}, руководитель {{ counts.get('manager', 0) }},
+  коллеги {{ counts.get('peer', 0) }}, подчинённые {{ counts.get('subordinate', 0) }}
+  · Порог анонимности: {{ threshold }}
+</p>
+
+{# 1. Сводка по компетенциям #}
+<h2>Сводка по компетенциям</h2>
+<table>
+  <thead>
+    <tr><th>Компетенция</th><th>Самооценка</th><th>Руководитель</th><th>Коллеги</th><th>Подчинённые</th><th>Другие</th></tr>
+  </thead>
+  <tbody>
+    {% for c in competencies %}
+    <tr>
+      <td>{{ c }}</td>
+      <td>{{ num(means[c]['self']) }}</td>
+      <td>{{ num(means[c]['manager']) }}</td>
+      <td>{% if peer_visible %}{{ num(means[c]['peer']) }}{% else %}<span class="muted">скрыто</span>{% endif %}</td>
+      <td>{% if sub_visible %}{{ num(means[c]['subordinate']) }}{% else %}<span class="muted">скрыто</span>{% endif %}</td>
+      <td>{% if others_visible %}{{ num(means[c]['others']) }}{% else %}<span class="muted">скрыто</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if not peer_visible and counts.get('peer', 0) > 0 %}
+<p class="muted">Коллеги скрыты: ответивших {{ counts.get('peer', 0) }} < порога {{ threshold }} (недостаточно для анонимного отображения).</p>
+{% endif %}
+{% if not sub_visible and counts.get('subordinate', 0) > 0 %}
+<p class="muted">Подчинённые скрыты: ответивших {{ counts.get('subordinate', 0) }} < порога {{ threshold }}.</p>
+{% endif %}
+
+{# 2–3. Я vs другие + радар #}
+<h2>Я vs другие</h2>
+{% if radar.labels %}
+<canvas id="radar" height="320"></canvas>
+<table>
+  <thead><tr><th>Компетенция</th><th>Самооценка</th><th>Другие</th><th>Δ (я − другие)</th></tr></thead>
+  <tbody>
+    {% for c in radar.labels %}
+    <tr>
+      <td>{{ c }}</td>
+      <td>{{ num(means[c]['self']) }}</td>
+      <td>{{ num(means[c]['others']) }}</td>
+      <td>{{ "%+.2f"|format(means[c]['self'] - means[c]['others']) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">Недостаточно данных для сравнения «я vs другие» (нужны и самооценка, и анонимный агрегат «другие»).</p>
+{% endif %}
+
+{# 4. Зоны #}
+<h2>Зоны</h2>
+<div class="zones">
+  <div class="competency">
+    <strong>Сильные стороны</strong> <span class="muted">(топ по «другие»)</span>
+    <ul>{% for c, v in zones.strong %}<li>{{ c }} — {{ num(v) }}</li>{% else %}<li class="muted">—</li>{% endfor %}</ul>
+  </div>
+  <div class="competency">
+    <strong>Зоны роста</strong> <span class="muted">(нижние по «другие»)</span>
+    <ul>{% for c, v in zones.growth %}<li>{{ c }} — {{ num(v) }}</li>{% else %}<li class="muted">—</li>{% endfor %}</ul>
+  </div>
+  <div class="competency">
+    <strong>Слепые зоны</strong> <span class="muted">(я высоко, другие низко, Δ&gt;1)</span>
+    <ul>{% for c, sv, ov, d in zones.blind %}<li>{{ c }}: я {{ num(sv) }} vs другие {{ num(ov) }} (Δ {{ "%.2f"|format(d) }})</li>{% else %}<li class="muted">нет</li>{% endfor %}</ul>
+  </div>
+  <div class="competency">
+    <strong>Скрытые сильные стороны</strong> <span class="muted">(я низко, другие высоко, Δ&gt;1)</span>
+    <ul>{% for c, sv, ov, d in zones.hidden %}<li>{{ c }}: я {{ num(sv) }} vs другие {{ num(ov) }} (Δ {{ "%.2f"|format(d) }})</li>{% else %}<li class="muted">нет</li>{% endfor %}</ul>
+  </div>
+</div>
+
+{# 5. Открытые ответы #}
+<h2>Открытые ответы</h2>
+{% for b in open_blocks %}
+<div class="competency">
+  <div class="muted">{{ b.competency }}</div>
+  <strong>{{ b.question }}</strong>
+  {% if b.self %}<p><span class="qtype">[самооценка]</span> {{ b.self|join("; ") }}</p>{% endif %}
+  {% for m in b.manager %}<p><span class="qtype">[руководитель]</span> {{ m }}</p>{% endfor %}
+  {% if b.peers %}<div class="qtype">коллеги (аноним., в перемешку):</div><ul>{% for t in b.peers %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+  {% if b.subs %}<div class="qtype">подчинённые (аноним., в перемешку):</div><ul>{% for t in b.subs %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% else %}
+<p class="muted">Открытых ответов нет (или скрыты по порогу анонимности).</p>
+{% endfor %}
+
+{# 6. Динамика #}
+{% if dynamics %}
+<h2>Динамика по компетенциям</h2>
+<p class="muted">Средний балл «другие» от цикла к циклу.</p>
+<canvas id="dynamics" height="320"></canvas>
+{% elif g.plan != 'pro' %}
+<h2>Динамика по компетенциям</h2>
+<p class="muted">Сравнение динамики доступно на тарифе Pro.</p>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+{% if radar.labels %}
+new Chart(document.getElementById('radar'), {
+  type: 'radar',
+  data: {
+    labels: {{ radar.labels|tojson }},
+    datasets: [
+      { label: 'Самооценка', data: {{ radar.self|tojson }}, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.15)' },
+      { label: 'Другие', data: {{ radar.others|tojson }}, borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,.15)' }
+      {% if has_manager_line %}, { label: 'Руководитель', data: {{ radar.manager|tojson }}, borderColor: '#d97706', backgroundColor: 'rgba(217,119,6,.10)' }{% endif %}
+    ]
+  },
+  options: { scales: { r: { min: 1, max: 5, ticks: { stepSize: 1 } } } }
+});
+{% endif %}
+{% if dynamics %}
+new Chart(document.getElementById('dynamics'), {
+  type: 'line',
+  data: {
+    labels: {{ dynamics.labels|tojson }},
+    datasets: [
+      {% for comp, vals in dynamics.series.items() %}
+      { label: {{ comp|tojson }}, data: {{ vals|tojson }}, spanGaps: true, tension: .2 }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ]
+  },
+  options: { scales: { y: { min: 1, max: 5 } } }
+});
+{% endif %}
+</script>
+{% endblock %}

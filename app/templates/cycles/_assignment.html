@@ -1,0 +1,15 @@
+{% set relation_labels = {"self": "самооценка", "manager": "руководитель", "peer": "коллега", "subordinate": "подчинённый"} %}
+{% set status_labels = {"pending": "ожидает", "in_progress": "заполняется", "submitted": "сдано"} %}
+<li id="assignment-{{ a.id }}">
+  <span class="qtype">[{{ relation_labels[a.relation] }}]</span>
+  <span>{{ a.evaluator_name }}</span>
+  <span class="muted">· {{ status_labels[a.status] }}</span>
+  {% if cycle.status != 'draft' %}
+  <span class="muted">· <code>/r/{{ a.token }}</code></span>
+  {% endif %}
+  <span class="spacer" style="flex:1"></span>
+  {% if cycle.status == 'draft' and a.relation != 'self' %}
+  <button hx-delete="{{ url_for('cycles.delete_assignment', cycle_id=cycle.id, assignment_id=a.id) }}"
+          hx-target="#assignment-{{ a.id }}" hx-swap="outerHTML">×</button>
+  {% endif %}
+</li>
