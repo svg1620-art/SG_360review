@@ -27,7 +27,7 @@
 
 <div id="subjects">
   {% for s in subjects %}
-    {% with assignments = assignments_by_subject.get(s.subject_id, []) %}
+    {% with assignments = assignments_by_subject.get(s.subject_id, []), progress = progress_line.get(s.subject_id, "") %}
       {% include "cycles/_subject.html" %}
     {% endwith %}
   {% else %}
@@ -39,6 +39,11 @@
 <form method="post" action="{{ url_for('cycles.launch', cycle_id=cycle.id) }}" style="margin-top:1.5rem"
       onsubmit="return confirm('Запустить цикл? После запуска состав вопросов фиксируется, а ссылки становятся активными.');">
   <button type="submit">Запустить цикл</button>
+</form>
+{% elif cycle.status == 'active' %}
+<form method="post" action="{{ url_for('cycles.close', cycle_id=cycle.id) }}" style="margin-top:1.5rem"
+      onsubmit="return confirm('Закрыть цикл? Незаполненные анкеты в агрегат не попадут.');">
+  <button type="submit">Закрыть цикл</button>
 </form>
 {% endif %}
 {% endblock %}

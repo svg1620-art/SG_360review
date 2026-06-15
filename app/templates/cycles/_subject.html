@@ -11,6 +11,10 @@
     {% endif %}
   </div>
 
+  {% if cycle.status != 'draft' and progress %}
+  <div class="muted" style="margin:.2rem 0 .4rem">Сдали: {{ progress }}</div>
+  {% endif %}
+
   <ul class="assignments questions" id="assignments-{{ s.subject_id }}">
     {% for a in assignments %}{% include "cycles/_assignment.html" %}{% endfor %}
   </ul>

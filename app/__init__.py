@@ -1,7 +1,7 @@
 """Фабрика приложения SG_360review."""
 from flask import Flask, g, redirect, url_for
 
-from . import auth, cli, competencies, cycles, db, employees, respond
+from . import auth, cli, competencies, cycles, db, employees, respond, scheduler
 from .config import Config
 
 
@@ -11,6 +11,7 @@ def create_app(config_object=Config):
 
     db.init_app(app)
     cli.init_app(app)
+    scheduler.init_app(app)
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(employees.bp)

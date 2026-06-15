@@ -17,3 +17,7 @@ class Config:
     # Куки сессии: защита от XSS и базовая защита от CSRF для форм.
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+
+    # APScheduler: авто-закрытие циклов по дедлайну.
+    SCHEDULER_ENABLED = os.environ.get("SCHEDULER_ENABLED", "1") not in ("0", "false", "False")
+    SCHEDULER_INTERVAL_MIN = int(os.environ.get("SCHEDULER_INTERVAL_MIN", "5"))

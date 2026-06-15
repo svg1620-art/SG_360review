@@ -23,6 +23,13 @@ bp = Blueprint("cycles", __name__, url_prefix="/cycles")
 
 PERIOD_TYPES = ("quarter", "half_year", "year", "custom")
 MANUAL_RELATIONS = ("manager", "peer", "subordinate")
+# Порядок и подписи relation для строки прогресса.
+PROGRESS_RELATIONS = (
+    ("self", "самооценка"),
+    ("manager", "руководитель"),
+    ("peer", "коллеги"),
+    ("subordinate", "подчинённые"),
+)
 
 
 def _draft_token():
@@ -193,9 +200,32 @@ def detail(cycle_id):
             (g.company_id, cycle_id),
         )
         candidate_subjects = cur.fetchall()
+        # Прогресс: сдавшие по каждому relation у каждого оцениваемого.
+        cur.execute(
+            """
+            SELECT subject_id, relation, count(*) AS total,
+                   count(*) FILTER (WHERE status = 'submitted') AS submitted
+            FROM assignments WHERE cycle_id = %s
+            GROUP BY subject_id, relation
+            """,
+            (cycle_id,),
+        )
+        prog_rows = cur.fetchall()
     assignments_by_subject = {}
     for a in assignments:
         assignments_by_subject.setdefault(a["subject_id"], []).append(a)
+
+    prog = {}
+    for p in prog_rows:
+        prog.setdefault(p["subject_id"], {})[p["relation"]] = (p["submitted"], p["total"])
+    progress_line = {}
+    for sid, rels in prog.items():
+        progress_line[sid] = " · ".join(
+            f"{label} {rels[key][0]}/{rels[key][1]}"
+            for key, label in PROGRESS_RELATIONS
+            if key in rels
+        )
+
     return render_template(
         "cycles/detail.html",
         cycle=cycle,
@@ -203,6 +233,7 @@ def detail(cycle_id):
         assignments_by_subject=assignments_by_subject,
         candidate_subjects=candidate_subjects,
         employees=_active_employees(),
+        progress_line=progress_line,
     )
 
 
@@ -248,6 +279,7 @@ def add_subject(cycle_id):
         assignments=_assignments_for_subject(subject_id),
         employees=_active_employees(),
         cycle=cycle,
+        progress="",  # в draft строка прогресса не показывается
     )
 
 
@@ -390,4 +422,21 @@ def launch(cycle_id):
         )
     db.commit()
     flash("Цикл запущен. Токен-ссылки доступны на странице цикла.")
+    return redirect(url_for("cycles.detail", cycle_id=cycle_id))
+
+
+@bp.route("/<int:cycle_id>/close", methods=["POST"])
+@login_required
+def close(cycle_id):
+    cycle = _get_owned_cycle(cycle_id)
+    if cycle["status"] != "active":
+        abort(409)
+    db = get_db()
+    with db.cursor() as cur:
+        cur.execute(
+            "UPDATE cycles SET status = 'closed' WHERE id = %s AND company_id = %s",
+            (cycle_id, g.company_id),
+        )
+    db.commit()
+    flash("Цикл закрыт. Отчёты доступны.")
     return redirect(url_for("cycles.detail", cycle_id=cycle_id))
