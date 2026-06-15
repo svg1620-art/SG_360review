@@ -8,15 +8,20 @@ load_dotenv()
 
 
 class Config:
+    APP_ENV = os.environ.get("FLASK_ENV", "production")
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
     DATABASE_URL = os.environ.get("DATABASE_URL")
     # Порог анонимности по умолчанию для новых компаний (companies.anon_threshold).
     ANON_THRESHOLD = int(os.environ.get("ANON_THRESHOLD", "3"))
-    DEBUG = os.environ.get("FLASK_ENV", "production") == "development"
+    DEBUG = APP_ENV == "development"
 
     # Куки сессии: защита от XSS и базовая защита от CSRF для форм.
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+    # В проде куки только по HTTPS (по умолчанию вкл для production).
+    SESSION_COOKIE_SECURE = os.environ.get(
+        "SESSION_COOKIE_SECURE", "1" if APP_ENV == "production" else "0"
+    ) not in ("0", "false", "False")
 
     # APScheduler: напоминания и авто-закрытие циклов по дедлайну.
     SCHEDULER_ENABLED = os.environ.get("SCHEDULER_ENABLED", "1") not in ("0", "false", "False")

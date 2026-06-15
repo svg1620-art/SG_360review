@@ -9,6 +9,14 @@ def create_app(config_object=Config):
     app = Flask(__name__)
     app.config.from_object(config_object)
 
+    # В проде секрет обязателен — не пускаем дефолтный/пустой.
+    if app.config["APP_ENV"] == "production" and app.config["SECRET_KEY"] in (
+        None,
+        "",
+        "dev-secret-change-me",
+    ):
+        raise RuntimeError("В production обязательна переменная окружения SECRET_KEY.")
+
     db.init_app(app)
     cli.init_app(app)
     scheduler.init_app(app)
