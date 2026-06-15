@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Циклы{% endblock %}
+{% set period_labels = {"quarter": "квартал", "half_year": "полугодие", "year": "год", "custom": "произвольный"} %}
+{% set status_labels = {"draft": "черновик", "active": "активен", "closed": "закрыт"} %}
+{% block content %}
+<h1>Оценочные циклы</h1>
+
+<form class="row-form" method="post" action="{{ url_for('cycles.create') }}">
+  <input name="title" placeholder="Название цикла" required>
+  <select name="period_type">
+    <option value="quarter">квартал</option>
+    <option value="half_year">полугодие</option>
+    <option value="year">год</option>
+    <option value="custom" selected>произвольный</option>
+  </select>
+  <input name="period_label" placeholder="метка (напр. 2026-Q1)">
+  <input name="deadline" type="date" title="дедлайн">
+  <button type="submit">Создать цикл</button>
+</form>
+
+<table>
+  <thead>
+    <tr><th>Название</th><th>Период</th><th>Дедлайн</th><th>Оцениваемых</th><th>Статус</th></tr>
+  </thead>
+  <tbody>
+    {% for c in cycles %}
+    <tr>
+      <td><a href="{{ url_for('cycles.detail', cycle_id=c.id) }}">{{ c.title }}</a></td>
+      <td>{{ period_labels[c.period_type] }}{% if c.period_label %} · {{ c.period_label }}{% endif %}</td>
+      <td>{{ c.deadline.strftime("%Y-%m-%d") if c.deadline else "—" }}</td>
+      <td>{{ c.subj_count }}</td>
+      <td>{{ status_labels[c.status] }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">Пока нет циклов.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

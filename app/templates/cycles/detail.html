@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ cycle.title }}{% endblock %}
+{% set period_labels = {"quarter": "квартал", "half_year": "полугодие", "year": "год", "custom": "произвольный"} %}
+{% set status_labels = {"draft": "черновик", "active": "активен", "closed": "закрыт"} %}
+{% block content %}
+<p><a href="{{ url_for('cycles.index') }}">← к циклам</a></p>
+
+<h1>{{ cycle.title }} <span class="badge">{{ status_labels[cycle.status] }}</span></h1>
+<p class="muted">
+  Период: {{ period_labels[cycle.period_type] }}{% if cycle.period_label %} · {{ cycle.period_label }}{% endif %}
+  · Дедлайн: {{ cycle.deadline.strftime("%Y-%m-%d") if cycle.deadline else "—" }}
+  {% if cycle.starts_at %}· Запущен: {{ cycle.starts_at.strftime("%Y-%m-%d") }}{% endif %}
+</p>
+
+{% if cycle.status == 'draft' %}
+<form class="row-form"
+      hx-post="{{ url_for('cycles.add_subject', cycle_id=cycle.id) }}"
+      hx-target="#subjects" hx-swap="beforeend"
+      hx-on::after-request="if(event.detail.successful) this.reset()">
+  <select name="employee_id" required>
+    <option value="" disabled selected>добавить оцениваемого…</option>
+    {% for e in candidate_subjects %}<option value="{{ e.id }}">{{ e.full_name }}</option>{% endfor %}
+  </select>
+  <button type="submit">Добавить</button>
+</form>
+{% endif %}
+
+<div id="subjects">
+  {% for s in subjects %}
+    {% with assignments = assignments_by_subject.get(s.subject_id, []) %}
+      {% include "cycles/_subject.html" %}
+    {% endwith %}
+  {% else %}
+    <p class="muted">Оцениваемые ещё не добавлены.</p>
+  {% endfor %}
+</div>
+
+{% if cycle.status == 'draft' %}
+<form method="post" action="{{ url_for('cycles.launch', cycle_id=cycle.id) }}" style="margin-top:1.5rem"
+      onsubmit="return confirm('Запустить цикл? После запуска состав вопросов фиксируется, а ссылки становятся активными.');">
+  <button type="submit">Запустить цикл</button>
+</form>
+{% endif %}
+{% endblock %}

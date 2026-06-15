@@ -42,6 +42,7 @@
 <body>
   {% if g.admin %}
   <nav>
+    <a href="{{ url_for('cycles.index') }}">Циклы</a>
     <a href="{{ url_for('employees.index') }}">Сотрудники</a>
     <a href="{{ url_for('competencies.index') }}">Компетенции</a>
     <span class="spacer"></span>
