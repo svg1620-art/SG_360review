@@ -18,6 +18,11 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
 
-    # APScheduler: авто-закрытие циклов по дедлайну.
+    # APScheduler: напоминания и авто-закрытие циклов по дедлайну.
     SCHEDULER_ENABLED = os.environ.get("SCHEDULER_ENABLED", "1") not in ("0", "false", "False")
     SCHEDULER_INTERVAL_MIN = int(os.environ.get("SCHEDULER_INTERVAL_MIN", "5"))
+    REMINDER_DAYS_BEFORE = int(os.environ.get("REMINDER_DAYS_BEFORE", "3"))
+
+    # Email и базовый URL для ссылок в письмах.
+    EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "console")
+    APP_BASE_URL = os.environ.get("APP_BASE_URL", "")
