@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Тариф{% endblock %}
+{% block content %}
+<h1>Тариф компании</h1>
+<p>Текущий тариф: <strong>{{ "Pro" if plan == 'pro' else "Free" }}</strong></p>
+
+<table>
+  <thead><tr><th>Возможность</th><th>Free</th><th>Pro</th></tr></thead>
+  <tbody>
+    <tr><td>Активных циклов</td><td>{{ limits.active_cycles }}</td><td>без лимита</td></tr>
+    <tr><td>Оцениваемых в цикле</td><td>до {{ limits.subjects }}</td><td>без лимита</td></tr>
+    <tr><td>Сотрудников в базе</td><td>до {{ limits.employees }}</td><td>без лимита</td></tr>
+    <tr><td>Компетенции</td><td>дефолтный шаблон</td><td>полная настройка</td></tr>
+    <tr><td>Сравнение динамики</td><td>—</td><td>✓</td></tr>
+    <tr><td>Экспорт XLSX</td><td>—</td><td>✓</td></tr>
+    <tr><td>Email-напоминания</td><td>ручная рассылка ссылок</td><td>авто по расписанию</td></tr>
+  </tbody>
+</table>
+
+{% if plan != 'pro' %}
+<p class="muted" style="margin-top:1rem">
+  Оплата Pro через ЮKassa будет доступна позже. Подписка оформляется на компанию.
+</p>
+{% endif %}
+{% endblock %}

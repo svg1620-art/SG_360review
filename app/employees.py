@@ -3,8 +3,16 @@ from flask import Blueprint, abort, g, render_template, request
 
 from .auth import login_required
 from .db import get_db
+from .limits import FREE_MAX_EMPLOYEES, is_pro
 
 bp = Blueprint("employees", __name__, url_prefix="/employees")
+
+
+def _employee_count():
+    db = get_db()
+    with db.cursor() as cur:
+        cur.execute("SELECT count(*) AS n FROM employees WHERE company_id = %s", (g.company_id,))
+        return cur.fetchone()["n"]
 
 
 def _get_owned(emp_id):
@@ -31,7 +39,13 @@ def index():
             (g.company_id,),
         )
         employees = cur.fetchall()
-    return render_template("employees/index.html", employees=employees)
+    can_add = is_pro() or len(employees) < FREE_MAX_EMPLOYEES
+    return render_template(
+        "employees/index.html",
+        employees=employees,
+        can_add=can_add,
+        free_limit=FREE_MAX_EMPLOYEES,
+    )
 
 
 @bp.route("/", methods=["POST"])
@@ -41,6 +55,8 @@ def create():
     full_name = f.get("full_name", "").strip()
     if not full_name:
         abort(400)
+    if not is_pro() and _employee_count() >= FREE_MAX_EMPLOYEES:
+        abort(403)  # лимит Free; форма скрыта в UI
     db = get_db()
     with db.cursor() as cur:
         cur.execute(

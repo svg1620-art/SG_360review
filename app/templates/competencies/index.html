@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Компетенции</h1>
 
+{% if g.plan == 'pro' %}
 <form class="row-form"
       hx-post="{{ url_for('competencies.create') }}"
       hx-target="#comp-list" hx-swap="beforeend"
@@ -11,6 +12,10 @@
   <input name="description" placeholder="описание">
   <button type="submit">Добавить компетенцию</button>
 </form>
+{% else %}
+<p class="flash">На тарифе Free используется дефолтный шаблон компетенций без изменений.
+  <a href="{{ url_for('billing.index') }}">Перейти на Pro</a> для полной настройки.</p>
+{% endif %}
 
 <div id="comp-list">
   {% for c in comps %}

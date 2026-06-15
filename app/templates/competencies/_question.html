@@ -2,6 +2,7 @@
   <span class="qtype">[{{ "1–5" if q.qtype == "rating" else "текст" }}]</span>
   <span>{{ q.text }}</span>
   <span class="spacer" style="flex:1"></span>
+  {% if g.plan == 'pro' %}
   <span class="actions">
     <button hx-get="{{ url_for('competencies.edit_question', q_id=q.id) }}"
             hx-target="#q-{{ q.id }}" hx-swap="outerHTML">изм.</button>
@@ -9,4 +10,5 @@
             hx-target="#q-{{ q.id }}" hx-swap="outerHTML"
             hx-confirm="Удалить вопрос?">×</button>
   </span>
+  {% endif %}
 </li>

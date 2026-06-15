@@ -99,6 +99,9 @@
 <h2>Динамика по компетенциям</h2>
 <p class="muted">Средний балл «другие» от цикла к циклу.</p>
 <canvas id="dynamics" height="320"></canvas>
+{% elif g.plan != 'pro' %}
+<h2>Динамика по компетенциям</h2>
+<p class="muted">Сравнение динамики доступно на тарифе Pro.</p>
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>

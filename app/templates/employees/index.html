@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Сотрудники</h1>
 
+{% if can_add %}
 <form class="row-form"
       hx-post="{{ url_for('employees.create') }}"
       hx-target="#emp-rows" hx-swap="beforeend"
@@ -13,6 +14,10 @@
   <input name="department" placeholder="отдел">
   <button type="submit">Добавить</button>
 </form>
+{% else %}
+<p class="flash">Достигнут лимит Free ({{ free_limit }} сотрудников).
+  <a href="{{ url_for('billing.index') }}">Перейти на Pro</a> для снятия ограничений.</p>
+{% endif %}
 
 <table>
   <thead>

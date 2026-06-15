@@ -54,7 +54,9 @@
     <a href="{{ url_for('cycles.index') }}">Циклы</a>
     <a href="{{ url_for('employees.index') }}">Сотрудники</a>
     <a href="{{ url_for('competencies.index') }}">Компетенции</a>
+    <a href="{{ url_for('billing.index') }}">Тариф</a>
     <span class="spacer"></span>
+    <span class="badge">{{ "Pro" if g.plan == 'pro' else "Free" }}</span>
     <span class="muted-light">{{ g.admin.email }}</span>
     <form method="post" action="{{ url_for('auth.logout') }}"><button>Выйти</button></form>
   </nav>

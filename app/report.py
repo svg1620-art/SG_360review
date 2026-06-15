@@ -13,6 +13,7 @@ from flask import Blueprint, abort, flash, g, redirect, render_template, url_for
 
 from .auth import login_required
 from .db import get_db
+from .limits import is_pro
 
 bp = Blueprint("report", __name__)
 
@@ -246,7 +247,8 @@ def report(cycle_id, subject_id):
     hidden.sort(key=lambda x: -x[3])
 
     open_blocks = _open_answers(db, cycle_id, subject_id, agg["peer_visible"], agg["sub_visible"])
-    dynamics = _dynamics(db, g.company_id, subj["employee_id"], threshold, comp_order)
+    # Сравнение динамики — только на Pro (раздел 9 ТЗ).
+    dynamics = _dynamics(db, g.company_id, subj["employee_id"], threshold, comp_order) if is_pro() else None
 
     return render_template(
         "report/report.html",

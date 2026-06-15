@@ -4,6 +4,7 @@
     {% if c.description %}<span class="muted">— {{ c.description }}</span>{% endif %}
     {% if not c.active %}<span class="badge">скрыта</span>{% endif %}
     <span class="spacer" style="flex:1"></span>
+    {% if g.plan == 'pro' %}
     <span class="actions">
       <button hx-get="{{ url_for('competencies.edit', comp_id=c.id) }}"
               hx-target="#comp-{{ c.id }}" hx-swap="outerHTML">Изм.</button>
@@ -11,12 +12,14 @@
               hx-target="#comp-{{ c.id }}" hx-swap="outerHTML"
               hx-confirm="Удалить компетенцию со всеми вопросами?">Удал.</button>
     </span>
+    {% endif %}
   </div>
 
   <ul class="questions" id="q-list-{{ c.id }}">
     {% for q in questions %}{% include "competencies/_question.html" %}{% endfor %}
   </ul>
 
+  {% if g.plan == 'pro' %}
   <form class="q-form"
         hx-post="{{ url_for('competencies.create_question', comp_id=c.id) }}"
         hx-target="#q-list-{{ c.id }}" hx-swap="beforeend"
@@ -28,4 +31,5 @@
     </select>
     <button type="submit">+ вопрос</button>
   </form>
+  {% endif %}
 </div>

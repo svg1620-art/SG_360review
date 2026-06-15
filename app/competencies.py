@@ -3,8 +3,15 @@ from flask import Blueprint, abort, g, render_template, request
 
 from .auth import login_required
 from .db import get_db
+from .limits import is_pro
 
 bp = Blueprint("competencies", __name__, url_prefix="/competencies")
+
+
+def _require_pro():
+    """Настройка компетенций доступна только на Pro (Free — только дефолтный шаблон)."""
+    if not is_pro():
+        abort(403)
 
 
 def _get_owned_competency(comp_id):
@@ -96,6 +103,7 @@ def edit(comp_id):
 @bp.route("/", methods=["POST"])
 @login_required
 def create():
+    _require_pro()
     name = request.form.get("name", "").strip()
     if not name:
         abort(400)
@@ -119,6 +127,7 @@ def create():
 @bp.route("/<int:comp_id>", methods=["POST"])
 @login_required
 def update(comp_id):
+    _require_pro()
     _get_owned_competency(comp_id)
     name = request.form.get("name", "").strip()
     if not name:
@@ -148,6 +157,7 @@ def update(comp_id):
 @bp.route("/<int:comp_id>", methods=["DELETE"])
 @login_required
 def delete(comp_id):
+    _require_pro()
     _get_owned_competency(comp_id)
     db = get_db()
     with db.cursor() as cur:
@@ -165,6 +175,7 @@ def delete(comp_id):
 @bp.route("/<int:comp_id>/questions", methods=["POST"])
 @login_required
 def create_question(comp_id):
+    _require_pro()
     _get_owned_competency(comp_id)
     text = request.form.get("text", "").strip()
     qtype = request.form.get("qtype", "rating")
@@ -202,6 +213,7 @@ def edit_question(q_id):
 @bp.route("/questions/<int:q_id>", methods=["POST"])
 @login_required
 def update_question(q_id):
+    _require_pro()
     _get_owned_question(q_id)
     text = request.form.get("text", "").strip()
     qtype = request.form.get("qtype", "rating")
@@ -221,6 +233,7 @@ def update_question(q_id):
 @bp.route("/questions/<int:q_id>", methods=["DELETE"])
 @login_required
 def delete_question(q_id):
+    _require_pro()
     _get_owned_question(q_id)
     db = get_db()
     with db.cursor() as cur:

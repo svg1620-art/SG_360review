@@ -13,16 +13,21 @@
 </p>
 
 {% if cycle.status == 'draft' %}
-<form class="row-form"
-      hx-post="{{ url_for('cycles.add_subject', cycle_id=cycle.id) }}"
-      hx-target="#subjects" hx-swap="beforeend"
-      hx-on::after-request="if(event.detail.successful) this.reset()">
-  <select name="employee_id" required>
-    <option value="" disabled selected>добавить оцениваемого…</option>
-    {% for e in candidate_subjects %}<option value="{{ e.id }}">{{ e.full_name }}</option>{% endfor %}
-  </select>
-  <button type="submit">Добавить</button>
-</form>
+  {% if can_add_subject %}
+  <form class="row-form"
+        hx-post="{{ url_for('cycles.add_subject', cycle_id=cycle.id) }}"
+        hx-target="#subjects" hx-swap="beforeend"
+        hx-on::after-request="if(event.detail.successful) this.reset()">
+    <select name="employee_id" required>
+      <option value="" disabled selected>добавить оцениваемого…</option>
+      {% for e in candidate_subjects %}<option value="{{ e.id }}">{{ e.full_name }}</option>{% endfor %}
+    </select>
+    <button type="submit">Добавить</button>
+  </form>
+  {% else %}
+  <p class="flash">Достигнут лимит Free ({{ free_subject_limit }} оцениваемых в цикле).
+    <a href="{{ url_for('billing.index') }}">Перейти на Pro</a>.</p>
+  {% endif %}
 {% endif %}
 
 <div id="subjects">

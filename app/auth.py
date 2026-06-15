@@ -25,17 +25,23 @@ def load_logged_in_admin():
     """Подгружает текущего админа и его company_id из сессии в g."""
     g.admin = None
     g.company_id = None
+    g.plan = None
     admin_id = session.get("admin_id")
     if admin_id is not None:
         db = get_db()
         with db.cursor() as cur:
             cur.execute(
-                "SELECT id, company_id, email, full_name FROM admins WHERE id = %s",
+                """
+                SELECT a.id, a.company_id, a.email, a.full_name, c.plan
+                FROM admins a JOIN companies c ON c.id = a.company_id
+                WHERE a.id = %s
+                """,
                 (admin_id,),
             )
             g.admin = cur.fetchone()
         if g.admin is not None:
             g.company_id = g.admin["company_id"]
+            g.plan = g.admin["plan"]
 
 
 def login_required(view):

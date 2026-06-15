@@ -18,6 +18,11 @@ from flask import (
 
 from .auth import login_required
 from .db import get_db
+from .limits import (
+    FREE_MAX_ACTIVE_CYCLES,
+    FREE_MAX_SUBJECTS_PER_CYCLE,
+    is_pro,
+)
 
 bp = Blueprint("cycles", __name__, url_prefix="/cycles")
 
@@ -234,6 +239,8 @@ def detail(cycle_id):
         candidate_subjects=candidate_subjects,
         employees=_active_employees(),
         progress_line=progress_line,
+        can_add_subject=is_pro() or len(subjects) < FREE_MAX_SUBJECTS_PER_CYCLE,
+        free_subject_limit=FREE_MAX_SUBJECTS_PER_CYCLE,
     )
 
 
@@ -251,6 +258,11 @@ def add_subject(cycle_id):
         abort(400)
     emp = _get_owned_employee(employee_id)
     db = get_db()
+    if not is_pro():
+        with db.cursor() as cur:
+            cur.execute("SELECT count(*) AS n FROM cycle_subjects WHERE cycle_id = %s", (cycle_id,))
+            if cur.fetchone()["n"] >= FREE_MAX_SUBJECTS_PER_CYCLE:
+                abort(403)  # лимит Free; форма скрыта в UI
     with db.cursor() as cur:
         cur.execute(
             "SELECT 1 FROM cycle_subjects WHERE cycle_id = %s AND employee_id = %s",
@@ -374,6 +386,18 @@ def launch(cycle_id):
     if cycle["status"] != "draft":
         abort(409)
     db = get_db()
+    if not is_pro():
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT count(*) AS n FROM cycles WHERE company_id = %s AND status = 'active'",
+                (g.company_id,),
+            )
+            if cur.fetchone()["n"] >= FREE_MAX_ACTIVE_CYCLES:
+                flash(
+                    f"На тарифе Free доступен {FREE_MAX_ACTIVE_CYCLES} активный цикл. "
+                    "Закройте текущий или перейдите на Pro."
+                )
+                return redirect(url_for("cycles.detail", cycle_id=cycle_id))
     with db.cursor() as cur:
         cur.execute("SELECT count(*) AS n FROM cycle_subjects WHERE cycle_id = %s", (cycle_id,))
         n_subjects = cur.fetchone()["n"]

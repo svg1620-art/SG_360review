@@ -41,10 +41,12 @@ def send_due_reminders(conn, sender, days_before, base_url=""):
                    subj.full_name AS subject_name
             FROM assignments a
             JOIN cycles c ON c.id = a.cycle_id
+            JOIN companies co ON co.id = c.company_id
             JOIN employees e ON e.id = a.evaluator_id
             JOIN cycle_subjects cs ON cs.id = a.subject_id
             JOIN employees subj ON subj.id = cs.employee_id
             WHERE c.status = 'active' AND c.deadline IS NOT NULL
+              AND co.plan = 'pro'
               AND a.status <> 'submitted'
               AND e.email IS NOT NULL
               AND (a.reminded_at IS NULL OR a.reminded_at < date_trunc('day', now()))
