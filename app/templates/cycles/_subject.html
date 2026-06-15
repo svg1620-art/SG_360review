@@ -3,6 +3,9 @@
 <div class="competency" id="subject-{{ s.subject_id }}">
   <div class="comp-head">
     <strong>{{ s.full_name }}</strong>
+    {% if cycle.status == 'closed' %}
+    <a href="{{ url_for('report.report', cycle_id=cycle.id, subject_id=s.subject_id) }}">Отчёт →</a>
+    {% endif %}
     <span class="spacer" style="flex:1"></span>
     {% if cycle.status == 'draft' %}
     <button hx-delete="{{ url_for('cycles.delete_subject', cycle_id=cycle.id, subject_id=s.subject_id) }}"
