@@ -4,6 +4,11 @@
 {% block content %}
 <p><a href="{{ url_for('cycles.detail', cycle_id=cycle.id) }}">← к циклу</a></p>
 <h1>Отчёт 360°: {{ subject_name }}</h1>
+{% if g.plan == 'pro' %}
+<p><a href="{{ url_for('report.export', cycle_id=cycle.id, subject_id=subject_id) }}">⤓ Скачать XLSX</a></p>
+{% else %}
+<p class="muted">Экспорт XLSX доступен на тарифе Pro.</p>
+{% endif %}
 <p class="muted">
   Цикл: {{ cycle.title }}{% if cycle.period_label %} · {{ cycle.period_label }}{% endif %}
   · Ответивших: самооценка {{ counts.get('self', 0) }}, руководитель {{ counts.get('manager', 0) }},

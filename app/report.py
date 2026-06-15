@@ -8,8 +8,21 @@
 """
 import random
 from collections import defaultdict
+from io import BytesIO
 
-from flask import Blueprint, abort, flash, g, redirect, render_template, url_for
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    g,
+    redirect,
+    render_template,
+    send_file,
+    url_for,
+)
+from openpyxl import Workbook
+from openpyxl.chart import LineChart, RadarChart, Reference
+from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, TwoCellAnchor
 
 from .auth import login_required
 from .db import get_db
@@ -187,10 +200,8 @@ def _dynamics(conn, company_id, employee_id, threshold, comp_order):
     return {"labels": labels, "series": series}
 
 
-@bp.route("/cycles/<int:cycle_id>/subjects/<int:subject_id>/report")
-@login_required
-def report(cycle_id, subject_id):
-    db = get_db()
+def _load_target(db, cycle_id, subject_id):
+    """Загружает цикл и оцениваемого с проверкой принадлежности компании."""
     with db.cursor() as cur:
         cur.execute(
             "SELECT * FROM cycles WHERE id = %s AND company_id = %s",
@@ -212,15 +223,15 @@ def report(cycle_id, subject_id):
             abort(404)
         cur.execute("SELECT anon_threshold FROM companies WHERE id = %s", (g.company_id,))
         threshold = cur.fetchone()["anon_threshold"]
+    return cycle, subj, threshold
 
-    if cycle["status"] != "closed":
-        flash("Отчёт доступен после закрытия цикла.")
-        return redirect(url_for("cycles.detail", cycle_id=cycle_id))
 
+def _assemble(db, cycle, subject_id, employee_id, threshold, with_dynamics):
+    """Собирает все данные отчёта. Общий источник для HTML и XLSX."""
+    cycle_id = cycle["id"]
     agg = _rating_aggregate(db, cycle_id, subject_id, threshold)
     means, comp_order = agg["means"], agg["competencies"]
 
-    # Радар: компетенции, где есть и self, и «другие».
     radar_comps = [c for c in comp_order if means[c]["self"] is not None and means[c]["others"] is not None]
     radar = {
         "labels": radar_comps,
@@ -230,7 +241,6 @@ def report(cycle_id, subject_id):
     }
     has_manager_line = any(v is not None for v in radar["manager"])
 
-    # Зоны — по баллу «другие».
     others_pairs = [(c, means[c]["others"]) for c in comp_order if means[c]["others"] is not None]
     strong = sorted(others_pairs, key=lambda x: -x[1])[:TOP_N]
     growth = sorted(others_pairs, key=lambda x: x[1])[:TOP_N]
@@ -247,23 +257,188 @@ def report(cycle_id, subject_id):
     hidden.sort(key=lambda x: -x[3])
 
     open_blocks = _open_answers(db, cycle_id, subject_id, agg["peer_visible"], agg["sub_visible"])
-    # Сравнение динамики — только на Pro (раздел 9 ТЗ).
-    dynamics = _dynamics(db, g.company_id, subj["employee_id"], threshold, comp_order) if is_pro() else None
+    dynamics = _dynamics(db, g.company_id, employee_id, threshold, comp_order) if with_dynamics else None
 
+    return {
+        "agg": agg,
+        "means": means,
+        "competencies": comp_order,
+        "radar": radar,
+        "has_manager_line": has_manager_line,
+        "zones": {"strong": strong, "growth": growth, "blind": blind, "hidden": hidden},
+        "open_blocks": open_blocks,
+        "dynamics": dynamics,
+    }
+
+
+@bp.route("/cycles/<int:cycle_id>/subjects/<int:subject_id>/report")
+@login_required
+def report(cycle_id, subject_id):
+    db = get_db()
+    cycle, subj, threshold = _load_target(db, cycle_id, subject_id)
+    if cycle["status"] != "closed":
+        flash("Отчёт доступен после закрытия цикла.")
+        return redirect(url_for("cycles.detail", cycle_id=cycle_id))
+
+    # Сравнение динамики — только на Pro (раздел 9 ТЗ).
+    ctx = _assemble(db, cycle, subject_id, subj["employee_id"], threshold, with_dynamics=is_pro())
+    agg = ctx["agg"]
     return render_template(
         "report/report.html",
         cycle=cycle,
+        subject_id=subject_id,
         subject_name=subj["full_name"],
         threshold=threshold,
         counts=agg["counts"],
-        competencies=comp_order,
-        means=means,
+        competencies=ctx["competencies"],
+        means=ctx["means"],
         peer_visible=agg["peer_visible"],
         sub_visible=agg["sub_visible"],
         others_visible=agg["others_visible"],
-        radar=radar,
-        has_manager_line=has_manager_line,
-        zones={"strong": strong, "growth": growth, "blind": blind, "hidden": hidden},
-        open_blocks=open_blocks,
-        dynamics=dynamics,
+        radar=ctx["radar"],
+        has_manager_line=ctx["has_manager_line"],
+        zones=ctx["zones"],
+        open_blocks=ctx["open_blocks"],
+        dynamics=ctx["dynamics"],
+    )
+
+
+def _two_cell_anchor(from_col, from_row, to_col, to_row):
+    """TwoCellAnchor (а не oneCellAnchor — иначе ломается парсер SG, см. CLAUDE.md)."""
+    anchor = TwoCellAnchor()
+    anchor._from = AnchorMarker(col=from_col, row=from_row)
+    anchor.to = AnchorMarker(col=to_col, row=to_row)
+    return anchor
+
+
+def _xlsx_cell(value, visible=True):
+    if not visible:
+        return "скрыто"
+    return round(value, 2) if value is not None else ""
+
+
+def _build_workbook(cycle, subject_name, threshold, ctx):
+    means, comps, agg = ctx["means"], ctx["competencies"], ctx["agg"]
+    wb = Workbook()
+
+    # Лист 1: сводка по компетенциям
+    ws = wb.active
+    ws.title = "Сводка"
+    ws.append([f"Отчёт 360°: {subject_name}"])
+    ws.append([f"Цикл: {cycle['title']}", f"Порог анонимности: {threshold}"])
+    ws.append([])
+    ws.append(["Компетенция", "Самооценка", "Руководитель", "Коллеги", "Подчинённые", "Другие"])
+    for c in comps:
+        m = means[c]
+        ws.append([
+            c,
+            _xlsx_cell(m["self"]),
+            _xlsx_cell(m["manager"]),
+            _xlsx_cell(m["peer"], agg["peer_visible"]),
+            _xlsx_cell(m["subordinate"], agg["sub_visible"]),
+            _xlsx_cell(m["others"], agg["others_visible"]),
+        ])
+
+    # Лист 2: я vs другие + радар
+    ws2 = wb.create_sheet("Я vs другие")
+    header = ["Компетенция", "Самооценка", "Другие"]
+    if ctx["has_manager_line"]:
+        header.append("Руководитель")
+    ws2.append(header)
+    labels = ctx["radar"]["labels"]
+    for c in labels:
+        row = [c, round(means[c]["self"], 2), round(means[c]["others"], 2)]
+        if ctx["has_manager_line"]:
+            mv = means[c]["manager"]
+            row.append(round(mv, 2) if mv is not None else None)
+        ws2.append(row)
+    if labels:
+        n = len(labels)
+        last_col = 4 if ctx["has_manager_line"] else 3
+        chart = RadarChart()
+        chart.title = "Я vs другие"
+        data = Reference(ws2, min_col=2, min_row=1, max_col=last_col, max_row=n + 1)
+        cats = Reference(ws2, min_col=1, min_row=2, max_row=n + 1)
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(cats)
+        chart.y_axis.scaling.min, chart.y_axis.scaling.max = 1, 5
+        chart.anchor = _two_cell_anchor(last_col + 1, 1, last_col + 9, 20)
+        ws2.add_chart(chart)
+
+    # Лист 3: зоны
+    ws3 = wb.create_sheet("Зоны")
+    ws3.append(["Сильные стороны (по «другие»)"])
+    for c, v in ctx["zones"]["strong"]:
+        ws3.append([c, round(v, 2)])
+    ws3.append([])
+    ws3.append(["Зоны роста (по «другие»)"])
+    for c, v in ctx["zones"]["growth"]:
+        ws3.append([c, round(v, 2)])
+    ws3.append([])
+    ws3.append(["Слепые зоны (я ≫ другие)", "самооценка", "другие", "Δ"])
+    for c, sv, ov, d in ctx["zones"]["blind"]:
+        ws3.append([c, round(sv, 2), round(ov, 2), round(d, 2)])
+    ws3.append([])
+    ws3.append(["Скрытые сильные (другие ≫ я)", "самооценка", "другие", "Δ"])
+    for c, sv, ov, d in ctx["zones"]["hidden"]:
+        ws3.append([c, round(sv, 2), round(ov, 2), round(d, 2)])
+
+    # Лист 4: открытые ответы (с учётом анонимности)
+    ws4 = wb.create_sheet("Открытые ответы")
+    for b in ctx["open_blocks"]:
+        ws4.append([b["competency"]])
+        ws4.append([b["question"]])
+        for t in b["self"]:
+            ws4.append(["самооценка", t])
+        for t in b["manager"]:
+            ws4.append(["руководитель", t])
+        for t in b["peers"]:
+            ws4.append(["коллеги (аноним.)", t])
+        for t in b["subs"]:
+            ws4.append(["подчинённые (аноним.)", t])
+        ws4.append([])
+
+    # Лист 5: динамика
+    dyn = ctx["dynamics"]
+    if dyn and dyn["series"]:
+        ws5 = wb.create_sheet("Динамика")
+        comp_names = list(dyn["series"].keys())
+        ws5.append(["Цикл"] + comp_names)
+        for i, label in enumerate(dyn["labels"]):
+            ws5.append([label] + [dyn["series"][cn][i] for cn in comp_names])
+        n, m = len(dyn["labels"]), len(comp_names)
+        chart = LineChart()
+        chart.title = "Динамика «другие»"
+        data = Reference(ws5, min_col=2, min_row=1, max_col=m + 1, max_row=n + 1)
+        cats = Reference(ws5, min_col=1, min_row=2, max_row=n + 1)
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(cats)
+        chart.y_axis.scaling.min, chart.y_axis.scaling.max = 1, 5
+        chart.anchor = _two_cell_anchor(m + 3, 1, m + 11, 20)
+        ws5.add_chart(chart)
+
+    return wb
+
+
+@bp.route("/cycles/<int:cycle_id>/subjects/<int:subject_id>/report.xlsx")
+@login_required
+def export(cycle_id, subject_id):
+    if not is_pro():
+        abort(403)  # экспорт XLSX — только Pro (раздел 9 ТЗ)
+    db = get_db()
+    cycle, subj, threshold = _load_target(db, cycle_id, subject_id)
+    if cycle["status"] != "closed":
+        flash("Отчёт доступен после закрытия цикла.")
+        return redirect(url_for("cycles.detail", cycle_id=cycle_id))
+
+    ctx = _assemble(db, cycle, subject_id, subj["employee_id"], threshold, with_dynamics=True)
+    wb = _build_workbook(cycle, subj["full_name"], threshold, ctx)
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"report_{cycle_id}_{subject_id}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
